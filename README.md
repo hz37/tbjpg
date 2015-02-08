@@ -115,34 +115,6 @@ I'd like my code to be as symmetric as possible, so
 I would opt for deleting a file directly after use.
 Check JPGTEST.TBK for an example.
 
-*********
-Licensing
-*********
-
-The product is freeware. You can use it however pleases you.
-
-There is no need to mention me, but I don't mind if you do
-anyway. You have the right to use this DLL in a commercial 
-application. If it's not too much trouble, mail me 
-(hens@gmx.net) if you're using this stuff in a real-world
-application. I'd love some feedback.
-
-I include the sourcecode (for what it's worth) so you can
-see what's going on. If you've got C++Builder 3 or 4, you
-should be able to re-compile and link this into a DLL.
-For Builder 3 you'll need tjpeg.zip, which is free from
-Borland's website (see links, below).
-
-Don't ask me for new features: there will be none.
-
-If something goes haywire and you think TBJPG.DLL is
-causing it, don't bother me. You're using this thing
-completely on your own. There are no hidden features inside
-the DLL as far as I can tell. It's completley OpenSource.
-
-If you re-distribute this DLL to other ToolBook-developers,
-please give them the original ZIP-file with all these files
-(sourcecode, examples, signatures, text) in it.
 
 ***********************
 So what's the drawback?
