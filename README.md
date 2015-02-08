@@ -43,40 +43,40 @@ Minimal code
 
 Link to the single function inside the DLL like this
 
-linkDLL32 "tbjpg.dll"
-  DWORD TransferJPEG(string, string);
-end
-
-Make sure TBII is able to find the DLL (see Files, below).
+linkDLL32 "tbjpg.dll"  
+  DWORD TransferJPEG(string, string);  
+end  
+  
+Make sure TBII is able to find the DLL (see Files, below).  
 
 Then simply specify a JPEG to convert into a BMP,
-maybe like this:
+maybe like this:  
+  
+local string fileName;  
+  
+-- just some support functions for this example  
+linkDLL "tbfile32.dll"  
+  string openFileDlg32(string, string, string, string, int);  
+  int removeFile32(string);  
+end  
+  
+-- do this next line in code (see JPGTEST.TBK)  
+tempFile of this book = "c:\some.bmp";    
 
-local string fileName;
+-- ask for a file  
+fileName = openFileDlg32("Pick a JPEG", NULL, NULL, "JPEG,*.jpg", 1);  
 
--- just some support functions for this example
-linkDLL "tbfile32.dll"
-  string openFileDlg32(string, string, string, string, int);
-  int removeFile32(string);
-end
-
--- do this next line in code (see JPGTEST.TBK)
-tempFile of this book = "c:\some.bmp";
-
--- ask for a file
-fileName = openFileDlg32("Pick a JPEG", NULL, NULL, "JPEG,*.jpg", 1);
-
-if(fileName <> NULL)then -- a file was picked
-  -- convert it to a BMP
-  if(TransferJPEG(fileName, tempFile of this book) <> 0)then
-    -- an existing bitmap resource is replaced
-    replace resource bitmap "b" with tempFile of this book;
-    -- and we remove the BMP afterwards
-    get removeFile32(tempFile of this book);
-  else
-    request "Error converting/loading" && fileName;
-  end
-end
+if(fileName <> NULL)then -- a file was picked  
+  -- convert it to a BMP  
+  if(TransferJPEG(fileName, tempFile of this book) <> 0)then  
+    -- an existing bitmap resource is replaced  
+    replace resource bitmap "b" with tempFile of this book;  
+    -- and we remove the BMP afterwards  
+    get removeFile32(tempFile of this book);  
+  else  
+    request "Error converting/loading" && fileName;  
+  end  
+end  
 
 As you can see, using bitmap resources makes the process
 completely transparant. After importing the JPEG, it's just
@@ -235,51 +235,51 @@ http://www.keyserver.net/en/
 Sample-code from JPGTEST.TBK bookscript
 ***************************************
 
-to handle enterBook
-	forward;
-	linkDLL "tbfile32.dll"
-		string openFileDlg32(string, string, string, string, int);
-		int removeFile32(string);
-	end
-	linkDLL32 (ExtractFilePath(name of this book) & "tbjpg.dll")
-		DWORD TransferJPEG(string, string);
-	end
-	if("tb60r.sbk" is not in sysBooks)then
-		push "tb60r.sbk" onto sysBooks;
-	end
-	tempFile of this book = ASYM_TempDir();
-	if(last char of tempFile of this book <> "\")then
-		put "\" after tempFile of this book;
-	end
-	put "__dummy.bmp" after tempFile of this book
-end
+to handle enterBook  
+	forward;  
+	linkDLL "tbfile32.dll"  
+		string openFileDlg32(string, string, string, string, int);  
+		int removeFile32(string);  
+	end  
+	linkDLL32 (ExtractFilePath(name of this book) & "tbjpg.dll")  
+		DWORD TransferJPEG(string, string);  
+	end  
+	if("tb60r.sbk" is not in sysBooks)then  
+		push "tb60r.sbk" onto sysBooks;  
+	end  
+	tempFile of this book = ASYM_TempDir();  
+	if(last char of tempFile of this book <> "\")then  
+		put "\" after tempFile of this book;  
+	end  
+	put "__dummy.bmp" after tempFile of this book  
+end  
+  
+to handle sized  
+	forward;  
+	send sizeToViewer;  
+end  
 
-to handle sized
-	forward;
-	send sizeToViewer;
-end
-
-to get LastDelimiter string delimiters, string source
-	-- returns position of last delimiter in source
-	-- or 0 if no delimiter is found
-	local long i;
-	step i from charCount(source) to 1 by -1
-		if(char i of source is in delimiters)then
-			return i;
-		end
-	end
-	return 0;
-end
-
-to get ExtractFilePath string fileName
-	-- extracts filepath of fileName
-	local int i;
-	i = LastDelimiter("\:", fileName);
-	if(i > 0)then
-		return chars 1 to i of fileName;
-	end
-	return NULL;
-end
+to get LastDelimiter string delimiters, string source  
+	-- returns position of last delimiter in source  
+	-- or 0 if no delimiter is found  
+	local long i;  
+	step i from charCount(source) to 1 by -1  
+		if(char i of source is in delimiters)then  
+			return i;  
+		end  
+	end  
+	return 0;  
+end  
+  
+to get ExtractFilePath string fileName    
+	-- extracts filepath of fileName  
+	local int i;  
+	i = LastDelimiter("\:", fileName);  
+	if(i > 0)then  
+		return chars 1 to i of fileName;  
+	end  
+	return NULL;  
+end  
 
 *****************************************
 Sample-code from JPGTEST.TBK buttonscript
