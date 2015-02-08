@@ -1,0 +1,442 @@
+8/28/2004 4:49:26 PM
+
+
+----------------------------------------------------------------------
+Book "c:\Make\tbjpg\cache\cached2.tbk"
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hens@gmx.net               --
+-- http://jthz.com            --
+--------------------------------
+-- updated: September 1, 1999 --
+--------------------------------
+
+to handle enterPage
+	-- actual caching
+	system string ImageNameCache[16];
+	system int ImageHitCache[16];
+	local string pageObjects, tempBitmap, mediaPath;
+	local long i, j, oldest, pageObjectsCount;
+	local logical loadMore;
+	forward;
+	mediaPath = myMediaPath(); --call once and refer to var. twice for speed
+	-- update ImageHitCache to age least used resources:
+	step i from 1 to 16
+		increment ImageHitCache[i];
+	end
+	-- see if we have resources loaded that can be re-used:
+	pageObjects = objects of this page;
+	pageObjectsCount = itemCount(pageObjects);
+	step i from 1 to pageObjectsCount
+		if(image of item i of pageObjects <> NULL)then
+			loaded of item i of pageObjects = false; -- mark as unloaded by default
+			step j from 1 to 16
+				if(ImageNameCache[j] = image of item i of pageObjects)then
+					normalgraphic of item i of pageObjects = bitmap ("Image_register" & j);
+					ImageHitCache[j] = 0; -- mark as in use (all others are >= 1)
+					loaded of item i of pageObjects = true;
+					break step;
+				end
+			end
+			if(not loaded of item i of pageObjects)
+				loadMore = true;
+			end
+		end
+	end
+	if(loadMore)then -- not all bitmaps were in the cache yet
+		step i from 1 to pageObjectsCount
+			if(image of item i of pageObjects <> NULL and loaded of item i of pageObjects = false)then
+				-- added optimization, hz37, 07/27/1999; image may have been loaded if used twice!
+				step j from 1 to 16
+					if(ImageNameCache[j] = image of item i of pageObjects)then
+						normalgraphic of item i of pageObjects = bitmap ("Image_register" & j);
+						-- hitcache number will be 0 already, so we'll leave that one out now
+						loaded of item i of pageObjects = true;
+						break step;
+					end
+				end
+				if(loaded of item i of pageObjects)then
+					continue step;
+				end
+				-- definitely load the image now
+				-- find least used Image_register:
+				oldest = 1; -- guess register 1 is the oldest
+				step j from 2 to 16
+					if(ImageHitCache[j] >= ImageHitCache[oldest])then
+						oldest = j;
+					end
+				end
+				if(".jpg" is in image of item i of pageObjects)then -- jpg
+					tempBitmap = tempFilename(".bmp");
+					get transferJPEG(mediaPath & image of item i of pageObjects, tempBitmap);
+					replace resource bitmap ("Image_register" & oldest) with tempBitmap;
+					get removeFile32(tempBitmap);
+				else -- bmp
+					replace resource bitmap ("Image_register" & oldest) with (mediaPath & image of item i of pageObjects);
+				end
+				ImageNameCache[oldest] = image of item i of pageObjects;
+				ImageHitCache[oldest] = 0; -- mark as in use (all others are >= 1)
+				normalgraphic of item i of pageObjects = bitmap ("Image_register" & oldest);
+			end
+		end
+	end
+	get flushMessageQueue();
+	sysCursor=1;
+end
+
+to get tempFilename string extension
+	-- a wrapper function to get a temporary filename
+	system string tmpPath;
+	if(first char of extension <> ".")then
+		put "." before extension;
+	end
+	return tmpPath & "__BCTEMP" & extension;
+end
+
+to get autoBackup string reason
+	-- reason is "Save" or "Exit",
+	-- to make this a generic function
+	local string currName, currPath, currShortname;
+	local string backupShortname, version;
+	local long backups, i;
+	-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+	backups = 5; -- TELL SCRIPT HOW MANY BACKUPS YOU WANT HERE
+	backupShortname = "bkdt"; -- AND WHAT NAME TO USE FOR THEM
+	-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+	currName = name of this book;
+	currPath = currName;
+	do
+		put last char of currPath before currShortname;
+		clear last char of currPath;
+	until(last char of currPath = "\");
+	if(backupShortname is in currShortname)then
+		request "You have opened a backup!" & crlf & reason \
+				& "?" with "Yes!" or "Nope";
+		if(it = "Yes!")then
+			send (reason) to system;
+		end
+		return false;
+	end
+	-- remove oldest backup (if any):
+	get removeFile32(currPath & backupShortname & backups & ".tbk");
+	-- cycle thru backup-files and shift their names:
+	step i from (backups - 1) to 0 by -1
+		get moveFile32(currPath & backupShortname & i & ".tbk", \
+				currPath & backupShortname & i + 1 & ".tbk");
+	end
+	-- save self as backup 0:
+	save as (currPath & backupShortname & "0.tbk"), true;
+	-- save self as self and auto-compact in the process:
+	save as currName, true;
+	return true;
+end
+
+to handle bcNewImage
+	-- insert dynamic JPG-button (resource graphic) in page
+	-- called from menu, authoring only
+	system string ImageNameCache[16];
+	local string dynamicButton, ImageLoaded, s;
+	local long i;
+	local logical stretchIt;
+	ImageLoaded = openFileDlg("Pick a JPEG file...", NULL, myMediaPath(), "JPEG (*.jpg),*.jpg", 1);
+	if(ImageLoaded = NULL)then -- cancel
+		break bcNewImage;
+	end
+	if("~" is in ImageLoaded)then
+		request "Let's not do long filenames, okay?!";
+		break bcNewImage;
+	end
+	request "Variable sized bitmap?" with "Yes" or "No";
+	stretchIt = (it = "Yes");
+	draw button from 150,600 to 2000,2000;
+	dynamicButton = selection;
+	Image of dynamicButton = ASYM_ShortFileName(ImageLoaded);
+	borderStyle of dynamicButton = "None";
+	transparent of dynamicButton = true;
+	highlight of dynamicButton = false;
+	fillColor of dynamicButton = 0,100,0;
+	clear caption of dynamicButton;
+	stretchGraphic of dynamicButton = stretchIt;
+	excludeTab of dynamicButton = true;
+	-- update self (caching of Images)
+	send enterPage;
+	step i from 1 to item 1 of dimensions(ImageNameCache)
+		if(ImageNameCache[i] = Image of dynamicButton)then
+			s = (item 2 of resourceInfo of bitmap ("Image_register" & i)) & "," & \
+					(item 3 of resourceInfo of bitmap ("Image_register" & i));
+			break step;
+		end
+	end
+	size of dynamicButton = clientToPageUnits(s);
+end
+
+to handle enterBook
+	system string tmpPath;
+	local pMem;
+	local string filesWeNeed;
+	local DWORD dwBufsize;
+	local long i;
+	linkDLL32 "tbjpg.dll"
+		DWORD TransferJPEG(string, string);
+	end	
+	linkDLL32 "kernel32.dll"
+		DWORD GetTempPathA(DWORD, pointer32);
+		pointer32 GlobalAlloc(DWORD, DWORD);
+		DWORD GlobalFree(pointer32);
+	end
+	linkDLL "tbfile32.dll"
+		int fileExists32(string);
+		int moveFile32(string, string);
+		int removeFile32(string);
+	end
+	filesWeNeed = "3.jpg,17.jpg,6.jpg,4.jpg,5.jpg,7.jpg,8.jpg,9.jpg,DUMMY.BMP,10.jpg,book.jpg,16.jpg,2.jpg,11.jpg,19.jpg,12.jpg,18.jpg,1.jpg,pinkbow.jpg,13.jpg,14.jpg,15.jpg";
+	step i from 1 to itemCount(filesWeNeed)
+		if(fileExists32(myMediaPath() & item i of filesWeNeed) <> 1)then
+			request "You should unzip the archive with the directories" & crlf & \
+					"Some JPG files appear to be missing" with "Exit to System";
+			send exit to system;
+			break enterBook;
+		end
+	end
+	if(not sysRuntime)then
+		linkDLL "tbdlg.dll"
+			string openFileDlg(string, string, string, string, int);
+		end
+		add menu "Bitmap" at author;
+		add menuitem "Add bitmap" alias "bcNewImage" to menu "Bitmap" at author;
+	end
+	-- find tmpPath
+	dwBufsize = 260; -- MAX_PATH
+	pMem = getFlatMemBlock(dwBufsize);
+	if(GetTempPathA(dwBufsize, pMem) <> 0)then
+		tmpPath = pointerString32(0, pMem);
+		if(last char of tmpPath <> "\")then
+			put "\" after tmpPath;
+		end
+	else -- failure
+		tmpPath = "c:\"; -- guess we can write here
+	end
+	get freeFlatMemBlock(pMem);
+	forward;	
+end
+
+to get ExtractFilePath string fileName
+	-- extracts filepath of fileName
+	local int i;
+	i = LastDelimiter("\:", fileName);
+	if(i > 0)then
+		return chars 1 to i of fileName;
+	end
+	return NULL;
+end
+
+to handle firstIdle
+	sysCursor = 1;
+	forward;
+end
+
+to get freeFlatMemBlock pMem
+	return GlobalFree(pMem);
+end
+
+to get getFlatMemBlock DWORD dwSize
+	return GlobalAlloc(0, dwSize); -- GMEM_FIXED
+end
+
+to get LastDelimiter string delimiters, string source
+	-- returns position of last delimiter in source
+	-- or 0 if no delimiter is found
+	local long i;
+	step i from charCount(source) to 1 by -1
+		if(char i of source is in delimiters)then
+			return i;
+		end
+	end
+	return 0;
+end
+
+to handle leaveBook
+	-- clear dynamically loaded images because the image-cache must be flushed
+	-- This is pretty useless in a single book application
+	-- but once you start navigating between tbk's, you'll want this
+	system string ImageNameCache[16];
+	clear ImageNameCache;
+	forward;
+end
+
+to get myPath
+	return ExtractFilePath(name of this book);
+end
+
+to get myMediaPath
+	return myPath() & "media\"
+end
+
+to handle save
+	system string ImageNameCache[16];
+	system int ImageHitCache[16];
+	local long i;
+	if(".sbk" is not in this book)then
+		if(not isChanged of this book)then
+			break save; -- user has fired a useless save command
+		end
+		if(name of this book = NULL)then
+			send saveAs;
+			break save;
+		end
+		-- minimize cacheload
+		clear ImageNameCache;
+		clear ImageHitCache; -- added hz37, 07/27/1999
+		step i from 1 to 16
+			replace resource bitmap ("Image_register" & i) with (myMediaPath() & "dummy.bmp");
+		end
+		if(autoBackup("Save"))then
+			send save to system;
+		end
+	else
+		forward;
+	end
+end
+
+----------------------------------------------------------------------
+sharedscript id 100 ("buttonFx")
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+to handle mouseEnter
+	if(enabled of target)then
+		sysCursor = 44;
+		borderStyle of target = pushbutton;
+		rgbStroke of self = 0,0,196;
+	end
+end
+
+to handle mouseLeave
+	rgbStroke of self = 0,0,0;
+	borderStyle of target = none;
+	sysCursor = 1;
+end
+
+----------------------------------------------------------------------
+Button id 5 of Background id 0
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+to handle buttonClick
+	request "Exit - sure?" with "Yes" or "No";
+	if(it = "Yes")then
+		send exit to system;
+	end
+end
+----------------------------------------------------------------------
+Button id 4 of Background id 0
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+notifyBefore enterPage
+	enabled of self = this page <> first page;
+end
+
+to handle buttonClick
+	sysLockscreen = true;
+	sysCursor = 4;
+	go first page;
+end
+----------------------------------------------------------------------
+Button id 3 of Background id 0
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+notifyBefore enterPage
+	enabled of self = this page <> last page;
+end
+
+to handle buttonClick
+	sysLockscreen = true;
+	sysCursor = 4;
+	go next page;
+end
+----------------------------------------------------------------------
+Button id 2 of Background id 0
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+notifyBefore enterPage
+	enabled of self = this page <> first page;
+end
+
+to handle buttonClick
+	sysLockscreen = true;
+	sysCursor = 4;
+	go previous page;
+end
+----------------------------------------------------------------------
+Button id 1 of Background id 0
+----------------------------------------------------------------------
+--------------------------------
+-- All code by Hens Zimmerman --
+-- hz37@xs4all.nl             --
+-- http://come.to/geek        --
+--------------------------------
+
+notifyBefore enterPage
+	enabled of self = itemCount(sysHistory) > 1;
+end
+
+to handle buttonClick
+	sysLockscreen = true;
+	sysCursor = 4;
+	send back;
+end
+----------------------------------------------------------------------
+Field id 0 of Background id 0
+----------------------------------------------------------------------
+notifyBefore enterPage
+	text of self = pagenumber of this page && "of" && \
+			pageCount of this book;
+end
+----------------------------------------------------------------------
+Hotword id 1 of Page id 4 (p. 5)
+----------------------------------------------------------------------
+to handle buttonClick
+	send enterPage;
+end
+----------------------------------------------------------------------
+Button id 0 of Page id 7 (p. 8)
+----------------------------------------------------------------------
+to handle buttonClick
+	request "Like I said, a button";
+end
+----------------------------------------------------------------------
+Hotword id 1 of Page id 12 (p. 13)
+----------------------------------------------------------------------
+to handle buttonClick
+	edit script of this book;
+end
+----------------------------------------------------------------------
+Hotword id 2 of Page id 13 (p. 14)
+----------------------------------------------------------------------
+-- This object has hyperlink properties
+
+12 objects with script, 399 script lines

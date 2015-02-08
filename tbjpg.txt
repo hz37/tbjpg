@@ -1,0 +1,315 @@
+**************************************************************
+TBJPG - freeware alternative for ImageStream JPG import filter
+**************************************************************
+
+***********
+What is it?
+***********
+
+If you need to import JPEG-files in an Asymetrix ToolBook II
+Instructor application (TBK) at author-level there is no
+problem; the ImageStream import-filter takes care of it.
+At runtime, there is a problem. As the Instructor 6.5 helpfile
+states: "Note: The importGraphic command only supports standard 
+Windows bitmap formats (BMP, DIB, and WMF) at runtime, because 
+other grapics filters are not redistributable.". This is
+probably due to the fact that our good friends at Asymetrix
+signed some paper with ImageStream many years ago that binds
+them to a silly contract.
+
+The TBJPG.DLL is not really a big effort of mine; it just so
+happens that I needed a solution to speed up my app and this 
+JPEG-problem started to annoy me. Another development
+tool I use from time to time (Borland C++ Builder 4 PRO) has
+free JPEG support built right into its core. In just a few 
+lines of code, a converter was created. That's right, this is 
+just a file-converter. It converts a JPEG to a BMP in a single 
+call. As a ToolBook-developer you can add this DLL to your
+files and re-distribute it with applications you create.
+
+**
+OS
+**
+
+The DLL only runs on a Win32 Operating System, such
+as Microsoft Windows 95, 98 or NT4.
+
+************
+Minimal code
+************
+
+Link to the single function inside the DLL like this
+
+linkDLL32 "tbjpg.dll"
+  DWORD TransferJPEG(string, string);
+end
+
+Make sure TBII is able to find the DLL (see Files, below).
+
+Then simply specify a JPEG to convert into a BMP,
+maybe like this:
+
+local string fileName;
+
+-- just some support functions for this example
+linkDLL "tbfile32.dll"
+  string openFileDlg32(string, string, string, string, int);
+  int removeFile32(string);
+end
+
+-- do this next line in code (see JPGTEST.TBK)
+tempFile of this book = "c:\some.bmp";
+
+-- ask for a file
+fileName = openFileDlg32("Pick a JPEG", NULL, NULL, "JPEG,*.jpg", 1);
+
+if(fileName <> NULL)then -- a file was picked
+  -- convert it to a BMP
+  if(TransferJPEG(fileName, tempFile of this book) <> 0)then
+    -- an existing bitmap resource is replaced
+    replace resource bitmap "b" with tempFile of this book;
+    -- and we remove the BMP afterwards
+    get removeFile32(tempFile of this book);
+  else
+    request "Error converting/loading" && fileName;
+  end
+end
+
+As you can see, using bitmap resources makes the process
+completely transparant. After importing the JPEG, it's just
+like using BMP-files, only your app is smaller and faster.
+
+That's right: faster. Usually the time it takes to load
+a large BMP file from disk supercedes the time to load 
+and decompress the same image as a much smaller JPEG-file
+in RAM.
+
+***************************
+So how does it work anyway?
+***************************
+
+TransferJPEG(jpgFile, bmpFile) takes an existing JPG-file
+(the first parameter, a regular TB-string) and creates
+the equivalent Windows BMP (bitmap), which is specified in
+the second parameter. This, too, is a regular TB-string.
+
+If the BMP exists, it's overwritten.
+
+If the function succeeds, non-zero ('TRUE') is returned.
+
+If the function fails, zero ('FALSE') is returned.
+This usually means the JPEG could not be found (did you
+forget to specify a path?), the JPEG could not be converted
+(there are some strange flavors of JPEG around. Make sure
+you are using standard JPEG-files, like produced by Adobe
+PhotoShop 5 and up and/or its ProJPEG plugin) or the
+BMP could not be written to disk (disk is read-only or full).
+
+The created BMP is not removed by the DLL. You should take 
+care of that. Either do this directy after converting a 
+JPEG or do it in leaveBook. Whatever sounds best to you.
+I'd like my code to be as symmetric as possible, so
+I would opt for deleting a file directly after use.
+Check JPGTEST.TBK for an example.
+
+*********
+Licensing
+*********
+
+The product is freeware. You can use it however pleases you.
+
+There is no need to mention me, but I don't mind if you do
+anyway. You have the right to use this DLL in a commercial 
+application. If it's not too much trouble, mail me 
+(hens@gmx.net) if you're using this stuff in a real-world
+application. I'd love some feedback.
+
+I include the sourcecode (for what it's worth) so you can
+see what's going on. If you've got C++Builder 3 or 4, you
+should be able to re-compile and link this into a DLL.
+For Builder 3 you'll need tjpeg.zip, which is free from
+Borland's website (see links, below).
+
+Don't ask me for new features: there will be none.
+
+If something goes haywire and you think TBJPG.DLL is
+causing it, don't bother me. You're using this thing
+completely on your own. There are no hidden features inside
+the DLL as far as I can tell. It's completley OpenSource.
+
+If you re-distribute this DLL to other ToolBook-developers,
+please give them the original ZIP-file with all these files
+(sourcecode, examples, signatures, text) in it.
+
+***********************
+So what's the drawback?
+***********************
+
+There is no drawback whatsoever. The ImageStream-filter
+Asymetrix licenses to you when you buy Instructor is so 
+unbelievably slow that you can use my DLL to convert a 
+JPG to a BMP, import the BMP into your application
+and delete it if you want to afterwards. Even this way, 
+TBJPG.DLL proved to be at least FOUR TIMES FASTER on 3 
+different machines.
+
+The code Borland uses to import a JPEG into a bitmap is highly
+standard. In fact, it's the Delphi JPEG Image 
+Compression/Decompression Unit (c) 1997, compliant to and
+based on the Joint Photographic Experts Group standard
+whitepaper also known as IS 10918-1 (ITU-T T.81).
+
+***********
+TB-versions 
+***********
+
+Asymetrix TBII 5 and up (I only tested this with 6.5, but some 
+folks out there use it with TBII 5. You can probably put this
+thing to good use in Assistant as well, if you also have
+Instructor).
+
+*****
+Files
+*****
+
+TBJPG.BPR and TBJPG.CPP are the sourcecode to this DLL.
+You will only need these files to re-compile or modify
+the DLL and you need Borland C++ Builder 3 or 4 or up for that.
+
+TBJPG.DLL is the only file you need to import JPEGs at runtime.
+Place it in your TBII runtime directory or in the same directory
+as your project's TBK's/SBK's.
+
+JPGTEST.TBK is a simple TBII 6.5 test-application to see this
+DLL in action. It's a single graphics button which imports a
+JPEG into itself. The OpenScript sourcecode can be found in
+this textfile as well. You should be able to import a standard 
+JPEG-file when running JPGTEST.TBK from TB runtime (TB60RUN.EXE).
+
+CACHE.EXE is a more complex example of importing JPEGs into
+a TBII application. It's a self-extracting archive, which
+you should unfold into an empty directory. It will create a
+media-subdirectory with some jpeg-files in it.
+
+The OpenScript you'll find in CACHED.TBK has taken me many
+hours of work. Feel free to comment or tell me where I go
+wrong. If you find a way to optimize speed, I'd be most
+interested to know about your changes and findings.
+
+hz37.asc is my PGP public key. You can use it to verify if 
+these files are all in perfect health. If you want to d/l 
+my PGP public key from a public key server instead, try 
+http://www.keyserver.net/en/   and here are my statistics:
+
+Hens Zimmerman  <hens@gmx.net>
+PGPKeyID        0xBBC240A7
+Fingerprint     EF36 D27A B35F 12E9 3D88 3B34 8A55 8837 BBC2 40A7 
+Size            1024
+Created         1999/02/15
+
+All the .sig files should have complete validity for the files
+they belong to.
+   
+*****
+Links
+*****
+
+JPEG-standard:
+http://www.jpeg.org/public/jpeghomepage.htm
+
+Borland free download of TJPEG.ZIP for C++Builder 3:
+http://www.borland.com/devsupport/bcppbuilder/file_supplements.html
+
+Asymetrix:
+http://www.asymetrix.com
+
+PGP:
+http://www.pgpi.org/
+http://www.nai.com/asp_set/products/tns/intro.asp
+http://www.keyserver.net/en/
+
+***************************************
+Sample-code from JPGTEST.TBK bookscript
+***************************************
+
+to handle enterBook
+	forward;
+	linkDLL "tbfile32.dll"
+		string openFileDlg32(string, string, string, string, int);
+		int removeFile32(string);
+	end
+	linkDLL32 (ExtractFilePath(name of this book) & "tbjpg.dll")
+		DWORD TransferJPEG(string, string);
+	end
+	if("tb60r.sbk" is not in sysBooks)then
+		push "tb60r.sbk" onto sysBooks;
+	end
+	tempFile of this book = ASYM_TempDir();
+	if(last char of tempFile of this book <> "\")then
+		put "\" after tempFile of this book;
+	end
+	put "__dummy.bmp" after tempFile of this book
+end
+
+to handle sized
+	forward;
+	send sizeToViewer;
+end
+
+to get LastDelimiter string delimiters, string source
+	-- returns position of last delimiter in source
+	-- or 0 if no delimiter is found
+	local long i;
+	step i from charCount(source) to 1 by -1
+		if(char i of source is in delimiters)then
+			return i;
+		end
+	end
+	return 0;
+end
+
+to get ExtractFilePath string fileName
+	-- extracts filepath of fileName
+	local int i;
+	i = LastDelimiter("\:", fileName);
+	if(i > 0)then
+		return chars 1 to i of fileName;
+	end
+	return NULL;
+end
+
+*****************************************
+Sample-code from JPGTEST.TBK buttonscript
+*****************************************
+
+to handle buttonClick
+	local string fileName;
+	fileName = openFileDlg32("Pick a JPEG", NULL, NULL, "JPEG,*.jpg", 1);
+	if(fileName = NULL)then
+		break buttonClick;
+	end
+	sysCursor = 4;
+	if(TransferJPEG(fileName, tempFile of this book) <> 0)then
+		replace resource bitmap "b" with tempFile of this book;
+		get removeFile32(tempFile of this book);
+	else
+		sysCursor = 1;
+		request "Error loading" && fileName;
+	end
+	sysCursor = 1;
+end
+
+
+
+Have fun,
+
+
+
+Hens Zimmerman
+
+
+Groningen
+
+The Netherlands
+
+September 1, 1999.

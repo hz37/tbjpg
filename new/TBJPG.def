@@ -1,0 +1,7 @@
+LIBRARY     TBJPG.DLL
+
+EXPORTS
+    CopyJpegToClipboard            @3   ; CopyJpegToClipboard
+    CopyJpegToFile                 @2   ; CopyJpegToFile
+    TransferJPEG                   @1   ; TransferJPEG
+    ___CPPdebugHook                @4   ; ___CPPdebugHook
