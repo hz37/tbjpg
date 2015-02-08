@@ -1,9 +1,9 @@
 # tbjpg
 My old ToolBook II Instructor DLL to load jpeg images fast and free
 
-**************************************************************
-TBJPG - freeware alternative for ImageStream JPG import filter
-**************************************************************
+**********************************************************
+TBJPG - free alternative for ImageStream JPG import filter
+**********************************************************
 
 ***********
 What is it?
